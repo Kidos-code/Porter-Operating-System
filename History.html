@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports History</title>
+    <link rel="stylesheet" href="Styles.css">
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <p>HOSPITAL PORTER OPERATIONS</p>
+            <h1>Porter Tracking System</h1>
+        </div>
+        <nav class="nav-links">
+            <a href="Report.html">New Report</a>
+            <a href="SignIn.html" id="SignOutLink">Sign out</a>
+        </nav>
+    </header>
+
+    <section class="history-table">
+        <h2>Transport History</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Porter</th>
+                    <th>Type</th>
+                    <th>Transfer</th>
+                    <th>Time</th> <!--With similar format as ward names-->
+                </tr>
+            </thead>
+            <tbody id="historyTableBody">
+                <!-- Transport history rows will be dynamically added here -->
+            </tbody>
+        </table>
+    </section>
+
+    <script src="Main.js"></script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report</title>
+    <link rel="stylesheet" href="Styles.css">
+</head>
+<body>
+    <header class="topbar">
+        <div id="report-header-text">
+            <p>HOSPITAL PORTER OPERATIONS</p>
+            <h1>Porter Tracking System</h1>
+        </div>
+        <nav class="nav-links">
+            <a href="History.html">Transport history</a>
+            <a href="SignIn.html" id="SignOutLink">Sign out</a>
+        </nav>
+    </header>
+
+    <main class="report-layout">
+    <div class="container">
+    <section class="report-form-section">
+        <h2>Report</h2>
+        <p>Please fill in the necessary information for the report.</p>
+        <div class="report-type-toggle" role="report-type-toggle">
+          <p>Select Report Type:</p>
+          <button type="button" class="toggle-btn active" data-type="Patient">Patient</button>
+          <button type="button" class="toggle-btn" data-type="Blood">Blood</button>
+        </div>
+
+        <form id="reportForm">
+            <label>Porter Name
+                <input type="text" id="reportPorterName" name="reportPorterName" required>
+            </label>
+            <label for="reportPatientName"> Patient Name
+                <input type="text" id="reportPatientName" name="reportPatientName" required>
+            </label>
+            <label> Pickup:
+                <input type="text" id="pickupWard" name="pickupWard" list="wardOptions" placeholder="Enter ward" required>
+                <datalist id="wardOptions">
+                    <option value="Emergency"></option>
+                    <option value="ICU"></option>
+                    <option value="Ward A"></option>
+                    <option value="Ward B"></option>
+                    <option value="Maternity"></option>
+                    <option value="Orthopaedics"></option>
+                </datalist>
+                <input type="time" id="pickupTime" name="pickupTime" required>
+            </label>
+            <label> Drop-off:
+                <input type="text" id="dropoffWard" name="dropoffWard" list="wardOptions" placeholder="Enter ward" required>
+                <input type="time" id="dropoffTime" name="dropoffTime" required>
+            </label>
+            <label> Feedback
+                <textarea id="reportFeedback" name="reportFeedback" rows="4" placeholder="Enter your feedback here..."></textarea>
+            </label>
+            <button type="submit" class="saveReturnBtn" formnovalidate>Save & Return</button>
+            <button type="submit" class="submitReportBtn">Submit</button>
+        </form>
+    </section>
+    </div>
+
+    <aside class="card">
+        <h2>Save & Return</h2>
+        <ul id="save-return-list" class="save-return-list"></ul>
+    </aside>
+    </main>
+    <script src="Main.js"></script>
+</body>
+</html>
