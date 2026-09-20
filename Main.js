@@ -7,6 +7,31 @@ const STORAGE_KEYS = {
     activeUser: "active-porter"            // Key for storing the currently logged-in user
 };
 
+// Use the local backend when the app is served by Node, while keeping file:// previews usable.
+const API_BASE = window.location.protocol === "file:" ? "http://localhost:3000" : "";
+
+// Send JSON to the backend and turn failed responses into readable errors.
+async function apiRequest(path, data, method = "POST") {
+    const response = await fetch(`${API_BASE}${path}`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: method === "GET" ? undefined : JSON.stringify(data)
+    });
+    const result = await response.json();
+    if (!response.ok) {
+        throw new Error(result.error || "The request could not be completed.");
+    }
+    return result;
+}
+
+// Build a calendar date using the user's local timezone for daily history grouping.
+function getLocalDateKey(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
 // Retrieve data from localStorage with fallback value if not found
 function getStoredData(key, fallback) {
     const data = localStorage.getItem(key);
@@ -132,7 +157,7 @@ function validatePassword(password) {
 function initSignInForm() {
     const signinForm = document.getElementById("signinForm");
     if (signinForm) {
-        signinForm.addEventListener("submit", function(e) {
+        signinForm.addEventListener("submit", async function(e) {
             e.preventDefault();
             
             // Get input values and trim whitespace
@@ -156,7 +181,17 @@ function initSignInForm() {
                 return;
             }
             
-            // Check if user exists in the system
+            // Prefer the backend so authentication uses server-side user records.
+            try {
+                const signedInUser = await apiRequest("/api/signin", { username, empNum, password });
+                setActiveUser(signedInUser);
+                showNotification("Signed in successfully.", "success", "Report.html");
+                return;
+            } catch (error) {
+                // Keep the original browser-only users working if the backend is offline.
+            }
+
+            // Check local browser users as a fallback for older accounts.
             const users = getUsers();
             const user = users.find(u => u.username === username && u.empNum === empNum);
             
@@ -183,12 +218,13 @@ function initSignInForm() {
 function initRegisterForm() {
     const registerForm = document.getElementById("registerForm");
     if (registerForm) {
-        registerForm.addEventListener("submit", function(e) {
+        registerForm.addEventListener("submit", async function(e) {
             e.preventDefault();
             
             // Get input values and trim whitespace
             const username = document.getElementById("registerUsername").value.trim();
             const empNum = document.getElementById("registerEmpNum").value.trim();
+            const email = document.getElementById("registerEmail").value.trim().toLowerCase();
             const password = document.getElementById("registerPassword").value;
             const confirmPassword = document.getElementById("registerConfirmPassword").value;
             
@@ -200,6 +236,11 @@ function initRegisterForm() {
             
             if (!empNum) {
                 showNotification("[Register] Please enter an employee number.", "error");
+                return;
+            }
+
+            if (!email) {
+                showNotification("[Register] Please enter your email.", "error");
                 return;
             }
             
@@ -231,7 +272,16 @@ function initRegisterForm() {
                 return;
             }
             
-            // Check for duplicate users
+            // Register with the backend so the email can later be used for password recovery.
+            try {
+                await apiRequest("/api/register", { username, empNum, email, password });
+                showNotification("Account created successfully.", "success", "SignIn.html");
+                return;
+            } catch (error) {
+                // Continue with localStorage when the backend is not running.
+            }
+
+            // Check for duplicate browser-only users.
             const users = getUsers();
             if (users.find(u => u.username === username || u.empNum === empNum)) {
                 showNotification("[Register] Username or employee number already exists.", "error");
@@ -239,7 +289,7 @@ function initRegisterForm() {
             }
             
             // Create new user and save to storage
-            const newUser = { username, empNum, password };
+            const newUser = { username, empNum, email, password };
             users.push(newUser);
             saveUsers(users);
             
@@ -248,9 +298,152 @@ function initRegisterForm() {
     }
 }
 
+// Control the modal and complete the email-code password reset workflow.
+function initForgotPassword() {
+    const modal = document.getElementById("forgotPasswordModal");
+    const link = document.getElementById("forgotPasswordLink");
+    const closeButton = document.getElementById("closeForgotPassword");
+    const requestForm = document.getElementById("requestResetForm");
+    const completeForm = document.getElementById("completeResetForm");
+    if (!modal || !link || !closeButton || !requestForm || !completeForm) return;
+
+    link.addEventListener("click", function(event) {
+        event.preventDefault();
+        modal.hidden = false;
+        document.getElementById("resetEmail").focus();
+    });
+    closeButton.addEventListener("click", () => modal.hidden = true);
+
+    requestForm.addEventListener("submit", async function(event) {
+        event.preventDefault();
+        const email = document.getElementById("resetEmail").value.trim().toLowerCase();
+        try {
+            const result = await apiRequest("/api/forgot-password", { email });
+            showNotification(result.message, "success");
+            if (result.developmentCode) showNotification(`Development reset code: ${result.developmentCode}`, "success");
+            requestForm.hidden = true;
+            completeForm.hidden = false;
+        } catch (error) {
+            showNotification(error.message, "error");
+        }
+    });
+
+    completeForm.addEventListener("submit", async function(event) {
+        event.preventDefault();
+        const email = document.getElementById("resetEmail").value.trim().toLowerCase();
+        const code = document.getElementById("resetCode").value.trim();
+        const password = document.getElementById("newPassword").value;
+        try {
+            const result = await apiRequest("/api/reset-password", { email, code, password });
+            modal.hidden = true;
+            requestForm.hidden = false;
+            completeForm.hidden = true;
+            requestForm.reset();
+            completeForm.reset();
+            showNotification(result.message, "success");
+        } catch (error) {
+            showNotification(error.message, "error");
+        }
+    });
+}
+
 // ============ REPORT FORM LOGIC ============
 // Global variable to track whether user is creating a Patient or Blood report
 let currentReportType = "Patient";
+let scannerStream;
+let scannerFrame;
+let scannerDetector;
+
+function setPatientIdentifierLabel() {
+    const label = document.getElementById("patientIdentifierLabel");
+    const patientNameInput = document.getElementById("reportPatientName");
+    const hospitalNumberInput = document.getElementById("reportHospitalNumber");
+    const scannerControl = document.getElementById("bloodScannerControl");
+    if (label) {
+        label.childNodes[0].textContent = currentReportType === "Blood" ? " Blood specimen barcode" : " Patient Name";
+    }
+    if (patientNameInput) patientNameInput.hidden = currentReportType === "Blood";
+    if (hospitalNumberInput) hospitalNumberInput.closest("label").hidden = currentReportType !== "Patient";
+    if (currentReportType === "Blood" && hospitalNumberInput) {
+        hospitalNumberInput.value = "";
+    }
+    if (scannerControl) scannerControl.hidden = currentReportType !== "Blood";
+}
+
+function stopScanner() {
+    if (scannerFrame) {
+        cancelAnimationFrame(scannerFrame);
+        scannerFrame = undefined;
+    }
+    if (scannerStream) {
+        scannerStream.getTracks().forEach(track => track.stop());
+        scannerStream = undefined;
+    }
+    const video = document.getElementById("scannerVideo");
+    if (video) video.srcObject = null;
+}
+
+function closeScanner() {
+    stopScanner();
+    const modal = document.getElementById("scannerModal");
+    if (modal) modal.hidden = true;
+}
+
+async function scanNextFrame() {
+    const video = document.getElementById("scannerVideo");
+    const status = document.getElementById("scannerStatus");
+    if (!video || !scannerDetector || video.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA) {
+        scannerFrame = requestAnimationFrame(scanNextFrame);
+        return;
+    }
+
+    try {
+        const detectedCodes = await scannerDetector.detect(video);
+        if (detectedCodes.length > 0 && detectedCodes[0].rawValue) {
+            const decodedValue = detectedCodes[0].rawValue;
+            document.getElementById("reportPatientName").value = decodedValue;
+            document.getElementById("scanResult").textContent = decodedValue;
+            closeScanner();
+            showNotification("Code scanned successfully.", "success");
+            return;
+        }
+    } catch {
+        if (status) status.textContent = "Unable to read that code. Try holding the camera steady.";
+    }
+    scannerFrame = requestAnimationFrame(scanNextFrame);
+}
+
+async function openScanner() {
+    const modal = document.getElementById("scannerModal");
+    const video = document.getElementById("scannerVideo");
+    const status = document.getElementById("scannerStatus");
+    if (!modal || !video || !status) return;
+
+    if (!("BarcodeDetector" in window) || !navigator.mediaDevices?.getUserMedia) {
+        showNotification("QR/barcode scanning is not supported by this browser.", "error");
+        return;
+    }
+
+    try {
+        const requestedFormats = ["qr_code", "code_128", "code_39", "code_93", "ean_13", "ean_8", "upc_a", "upc_e", "itf", "codabar"];
+        const supportedFormats = BarcodeDetector.getSupportedFormats
+            ? (await BarcodeDetector.getSupportedFormats()).filter(format => requestedFormats.includes(format))
+            : requestedFormats;
+        scannerDetector = new BarcodeDetector({ formats: supportedFormats });
+        scannerStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false
+        });
+        video.srcObject = scannerStream;
+        modal.hidden = false;
+        status.textContent = "Point the rear camera at a QR code or barcode.";
+        scannerFrame = requestAnimationFrame(scanNextFrame);
+    } catch (error) {
+        stopScanner();
+        status.textContent = "Camera access was not available.";
+        showNotification(error.name === "NotAllowedError" ? "Camera permission is required to scan." : "Could not start the camera.", "error");
+    }
+}
 
 // Initialize all report form features including auto-fill, toggles, and buttons
 function initReportForm() {
@@ -270,12 +463,17 @@ function initReportForm() {
             // Update the second input label based on report type
             const patientNameInput = document.getElementById("reportPatientName");
             if (patientNameInput && patientNameInput.parentElement.tagName === "LABEL") {
-                const label = patientNameInput.parentElement;
-                const newText = currentReportType === "Blood" ? " Blood specimen" : " Patient Name";
-                label.childNodes[0].textContent = newText;
+                setPatientIdentifierLabel();
             }
         });
     });
+
+    setPatientIdentifierLabel();
+
+    const openScannerButton = document.getElementById("openScanner");
+    const closeScannerButton = document.getElementById("closeScanner");
+    if (openScannerButton) openScannerButton.addEventListener("click", openScanner);
+    if (closeScannerButton) closeScannerButton.addEventListener("click", closeScanner);
     
     // Auto-fill porter name field with logged-in user's name
     const activeUser = getActiveUser();
@@ -310,14 +508,21 @@ function initReportForm() {
 function validateReportForm(isDraft = false) {
     // Get all form field values and trim whitespace
     const patientName = document.getElementById("reportPatientName").value.trim();
+    const hospitalNumber = document.getElementById("reportHospitalNumber").value.trim();
     const pickupWard = document.getElementById("pickupWard").value.trim();
     const pickupTime = document.getElementById("pickupTime").value.trim();
     const dropoffWard = document.getElementById("dropoffWard").value.trim();
     const dropoffTime = document.getElementById("dropoffTime").value.trim();
+    const isPatientReport = currentReportType === "Patient";
     
     // Check patient name / blood specimen is filled
     if (!patientName) {
-            showNotification("Please enter patient name or blood specimen.", "error");
+            showNotification(isPatientReport ? "Please enter the patient name." : "Please enter the blood specimen.", "error");
+        return false;
+    }
+
+    if (isPatientReport && !hospitalNumber) {
+            showNotification("Please enter the hospital number.", "error");
         return false;
     }
     
@@ -350,7 +555,7 @@ function validateReportForm(isDraft = false) {
 }
 
 // Save or submit the report based on button clicked (Save as Draft or Submit)
-function saveReport(isDraft) {
+async function saveReport(isDraft) {
     // Validate form - different rules for draft vs final submission
     if (!validateReportForm(isDraft)) {
         return;
@@ -358,11 +563,14 @@ function saveReport(isDraft) {
     
     // Gather all report data from form fields
     const activeUser = getActiveUser();
+    const patientNameValue = document.getElementById("reportPatientName").value.trim();
+    const hospitalNumberValue = currentReportType === "Patient" ? document.getElementById("reportHospitalNumber").value.trim() : "";
     const report = {
         id: Date.now(),                                                          // Unique ID using current timestamp
         porter: activeUser.username,                                            // Name of the porter submitting the report
         type: currentReportType,                                               // Report type: "Patient" or "Blood"
-        patientName: document.getElementById("reportPatientName").value.trim(),
+        patientName: patientNameValue,
+        hospitalNumber: hospitalNumberValue,
         pickupWard: document.getElementById("pickupWard").value.trim(),
         pickupTime: document.getElementById("pickupTime").value.trim(),
         dropoffWard: document.getElementById("dropoffWard").value.trim(),
@@ -380,10 +588,17 @@ function saveReport(isDraft) {
         displaySavedReports();
         clearReportForm();
     } else {
-        const reports = getReports();
-        reports.push(report);
-        saveReports(reports);
+        try {
+            // Persist completed reports in the backend database so every client shares the log.
+            await apiRequest("/api/reports", { ...report, reportDate: getLocalDateKey() });
             showNotification("Report submitted successfully.", "success");
+        } catch (error) {
+            // Keep file:// previews usable when the optional local backend is not running.
+            const reports = getReports();
+            reports.push(report);
+            saveReports(reports);
+            showNotification("Saved locally. Start the backend to share this report.", "success");
+        }
         clearReportForm();
         displaySavedReports();
     }
@@ -436,7 +651,8 @@ function loadDraftReport(reportId) {
     
     if (report) {
         // Populate all form fields with saved data
-        document.getElementById("reportPatientName").value = report.patientName;
+        document.getElementById("reportPatientName").value = report.patientName || "";
+        document.getElementById("reportHospitalNumber").value = report.hospitalNumber || "";
         document.getElementById("pickupWard").value = report.pickupWard;
         document.getElementById("pickupTime").value = report.pickupTime;
         document.getElementById("dropoffWard").value = report.dropoffWard;
@@ -452,6 +668,7 @@ function loadDraftReport(reportId) {
                 currentReportType = report.type;
             }
         });
+        setPatientIdentifierLabel();
         
     }
 }
@@ -491,12 +708,24 @@ function formatPorterName(username) {
 // ============ HISTORY PAGE LOGIC ============
 // Retrieve all submitted reports and display them in the history table
 // Formats porter names and creates a readable transfer description
-function initHistoryTable() {
+async function initHistoryTable() {
     const historyTableBody = document.getElementById("historyTableBody");
     if (!historyTableBody) return;
     
-    // Get all submitted reports from storage
-    const reports = getReports();
+    let reports;
+    const today = getLocalDateKey();
+    try {
+        // Ask the backend for today's records; older records remain in its database.
+        const result = await apiRequest(`/api/reports?date=${today}`, undefined, "GET");
+        reports = result.reports;
+    } catch (error) {
+        // Use legacy browser records when the page is opened without the backend.
+        reports = getReports().filter(report => (report.reportDate || report.createdAt.slice(0, 10)) === today);
+    }
+
+    // Refresh at the first moment of the next local day so the table becomes empty automatically.
+    const millisecondsUntilTomorrow = new Date(new Date().setHours(24, 0, 0, 0)).getTime() - Date.now();
+    setTimeout(() => initHistoryTable(), millisecondsUntilTomorrow);
     
     // Show message if no reports have been submitted yet
     if (reports.length === 0) {
@@ -550,6 +779,8 @@ function initSignOut() {
 document.addEventListener("DOMContentLoaded", function() {
     // Initialize sign-in form (only present on SignIn.html)
     initSignInForm();
+    // Initialize the password recovery modal (only present on SignIn.html)
+    initForgotPassword();
     // Initialize registration form (only present on Register.html)
     initRegisterForm();
     // Initialize report form (only present on Report.html)

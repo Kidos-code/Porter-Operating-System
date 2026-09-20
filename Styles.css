@@ -1,236 +1,530 @@
-:root{
-    background-color: #e3eefd;
-    border: none;
-    font-family: 'Inter', sans-serif;
+:root {
+    font-family: "Segoe UI", Tahoma, sans-serif;
+    color: #172b4d;
+    background: #eef3f8;
+    font-synthesis: none;
 }
 
-.container {
-    max-width: 800px;
-  /* Center standalone sign-in and registration cards. */
-  margin: 0 auto;
-    border-radius: 8px;
-    padding: 20px;
-    background-color: #f9f9f9;
+* {
+    box-sizing: border-box;
 }
 
-/* Center the report form and saved-report card as one responsive layout. */
-.report-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
-  align-items: start;
-  gap: 24px;
-  width: min(1120px, calc(100% - 40px));
-  margin: 0 auto;
+body {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #eef3f8 0%, #dce7f1 100%);
+    font-size: 1.05rem;
 }
 
-.report-layout .container {
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.report-layout .card {
-  margin: 0;
+h1,
+h2,
+p {
+    margin: 0;
 }
 
 h1,
 h2 {
-  margin: 0;
+    color: #172b4d;
 }
 
-/*This is correct, but it still needs formatting and some stuff needs to be 
-removed*/
-.card, #reportForm{
-    background-color: #ffffff;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
+h1 {
+    font-size: clamp(1.35rem, 3vw, 2rem);
+    line-height: 1.15;
+}
+
+h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.55rem;
+    font-weight: 600;
+}
+
+p {
+    color: #526174;
+    line-height: 1.5;
+}
+
+a {
+    color: #174ea6;
+}
+
+button,
+input,
+textarea {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+.container {
+    width: min(560px, 100%);
+    margin: 0 auto;
+}
+
+.container > section,
+.report-form-section,
+.card,
+.history-table {
+    background: #ffffff;
+    border: 1px solid #d6e0ea;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(23, 43, 77, 0.08);
+}
+
+.container > section {
+    padding: 22px;
+}
+
+.container > section > h2 {
+    margin-bottom: 8px;
+}
+
+form {
+    display: grid;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+form label {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 7px;
+    color: #263b5a;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+input,
+textarea {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid #b8c6d5;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #172b4d;
+}
+
+form input {
+    padding: 10px 12px;
+}
+
+input:focus,
+textarea:focus,
+button:focus-visible,
+a:focus-visible {
+    outline: 3px solid rgba(23, 78, 166, 0.25);
+    outline-offset: 2px;
+}
+
+textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+form > button,
+.scan-button,
+.notification-actions button {
+    min-height: 36px;
+    padding: 7px 12px;
+    border: 1px solid #174ea6;
+    border-radius: 6px;
+    background: #174ea6;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.report-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.report-actions button {
+    min-height: 34px;
+    width: auto;
+    padding: 6px 11px;
+    white-space: nowrap;
+}
+
+form > button:hover,
+.scan-button:hover,
+.notification-actions button:hover {
+    background: #123d83;
+}
+
+.forgot-password {
+    margin-top: -4px;
+    text-align: right;
+}
+
+.registerText,
+.signInText {
+    margin-top: 20px;
+    text-align: center;
 }
 
 .topbar {
-  /* Match the header width to the centered page content on every viewport. */
-  width: min(1120px, calc(100% - 40px));
-  box-sizing: border-box;
-  margin: 0 auto 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: min(1050px, 100%);
+    margin: 0 auto 10px;
 }
 
-/* Make the hospital operations label bold with a softer blue than navigation. */
 .topbar p {
-  color: #4c6fd6;
-  font-size: 13px;
-  font-weight: 700;
+    margin-bottom: 5px;
+    color: #3769a9;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
 }
 
 .nav-links {
     display: flex;
-    gap: 10px;
     flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 5px;
 }
 
 .nav-links a {
-  text-decoration: none;
-  color: #13318e;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 99px;
-  text-decoration: underline;
+    padding: 6px 10px;
+    border-radius: 6px;
+    color: #174ea6;
+    font-weight: 600;
+    text-decoration: none;
 }
 
-.nav-links a.active,
 .nav-links a:hover {
-  background: #c9d7dca8;
+    background: #dce8f7;
+}
+
+.report-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+    gap: 12px;
+    width: min(1110px, 100%);
+    margin: 0 auto;
+}
+
+.report-layout .container {
+    width: 90%;
+}
+
+.report-form-section {
+    padding: 20px;
+}
+
+.report-form-section > h2 {
+    margin-bottom: 6px;
+}
+
+.report-type-toggle {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 14px;
+    padding: 5px;
+    border: 1px solid #d6e0ea;
+    border-radius: 7px;
+    background: #f5f8fb;
+}
+
+.report-type-toggle p {
+    width: 100%;
+    color: #263b5a;
+    font-weight: 700;
 }
 
 .toggle-btn {
-  text-decoration: none;
-  color: #13318e;
-  font-weight: 550;
-  padding: 3px 12px;
-  border-radius: 99px;
+    padding: 4.5px 14px;
+    border: 1px solid #afc0d3;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #174ea6;
+    font-weight: 700;
 }
 
 .toggle-btn.active,
 .toggle-btn:hover {
-  background: #d9eaf2;
-  opacity: 0.8;
+    border-color: #174ea6;
+    background: #174ea6;
+    color: #ffffff;
 }
 
-p {
+#reportForm {
+    width:100%;
+    margin-top: 14px;
+    padding: 0;
+}
+
+.paired-field-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(180px, 0.8fr);
+    gap: 12px;
+}
+
+.paired-field-row label {
+    min-width: 0;
+}
+
+.paired-inputs {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 140px;
+    gap: 7px;
+}
+
+.blood-scanner {
+    display: grid;
+    gap: 7px;
+}
+
+.blood-scanner[hidden],
+.paired-field-row label[hidden] {
+    display: none;
+}
+
+.scan-button {
+    width: fit-content;
+}
+
+#scanResult {
+    min-height: 42px;
+    padding: 11px 12px;
+    border: 1px dashed #b8c6d5;
+    border-radius: 6px;
+    color: #526174;
+    font-weight: 400;
+}
+
+.card {
+    padding: 18px;
+}
+
+.card h2 {
+    margin-bottom: 10px;
+}
+
+.save-return-list {
+    display: grid;
+    gap: 8px;
+    padding: 0;
     margin: 0;
-    line-height: 1.5;
-    color: #333333;
+    list-style: none;
 }
 
-/* Keep temporary notifications visible in the top-right corner. */
-.notification {
-    position: fixed;
-    top: 24px;
-    right: 24px;
-    z-index: 10;
-    width: min(420px, calc(100vw - 48px));
-    box-sizing: border-box;
-    padding: 16px 22px;
-    border: 1px solid #13294b;
-    border-radius: 4px;
-    background-color: #ffffff;
-    color: #27313d;
-    box-shadow: 0 4px 14px rgba(19, 41, 75, 0.14);
-    text-align: left;
+.save-return-list li {
+    padding: 9px;
+    border: 1px solid #d6e0ea;
+    border-radius: 6px;
+    background: #f8fafc;
 }
 
-/* Use a soft red treatment for validation and other errors. */
-.notification-error {
-  border-color: #b94a48;
-  background-color: #fff1f0;
-  color: #8f302e;
+.save-return-list p {
+    margin: 4px 0 10px;
+    font-size: 0.9rem;
 }
 
-/* Use an off-white background and navy border for successful actions. */
-.notification-success {
-  border-color: #13294b;
-  background-color: #f8f6ef;
-  color: #13294b;
+.loadDraftBtn,
+.deleteDraftBtn {
+    padding: 6px 10px;
+    border: 1px solid #b8c6d5;
+    border-radius: 5px;
+    background: #ffffff;
+    color: #174ea6;
 }
 
-/* Center confirmations so the user's decision is clear. */
-.notification-confirmation {
-  top: 50%;
-  right: auto;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-color: #d7dce2;
-  background-color: #ffffff;
-  color: #27313d;
-  text-align: center;
+.deleteDraftBtn {
+    margin-left: 6px;
+    color: #a33a36;
 }
 
-.notification-confirmation p {
-  margin-bottom: 16px;
-  color: inherit;
-}
-
-.notification-actions {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-}
-
-.notification-actions button {
-  padding: 7px 16px;
-  border: 1px solid #13294b;
-  border-radius: 3px;
-  background-color: #ffffff;
-  color: #13294b;
-  cursor: pointer;
-  font: inherit;
-}
-
-.notification-actions .confirmBtn {
-  background-color: #13294b;
-  color: #ffffff;
-}
-
-.notification-actions button:hover {
-  opacity: 0.84;
-}
-
-/* Keep the history table centered and separate log rows without outer borders. */
 .history-table {
-  width: min(1120px, calc(100% - 40px));
-  /* Center the history table while keeping its white surface. */
-  margin: 0 auto;
-  padding: 10px;
-  box-sizing: border-box;
-  background-color: #ffffff;
+    width: min(1120px, 100%);
+    margin: 0 auto;
+    padding: 20px;
+    overflow-x: auto;
+}
+
+.history-table h2 {
+    margin-bottom: 12px;
 }
 
 .history-table table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
+    width: 100%;
+    min-width: 600px;
+    border-collapse: collapse;
 }
 
 .history-table th,
 .history-table td {
-  padding: 12px 16px;
-  text-align: left;
-}
-
-/* Give the table headers their own block and make them easier to scan. */
-.history-table thead {
-  background-color: #b8c9d972;
-  color: #13294b;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e1e7ee;
+    text-align: left;
 }
 
 .history-table th {
-  font-size: 1.15rem;
-  font-weight: 700;
+    background: #f1f5f9;
+    color: #263b5a;
+    font-size: 0.86rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 }
 
-.history-table tbody tr:not(:first-child) {
-  background-image: linear-gradient(
-    to right,
-    transparent 2cm,
-    #c8d0d8 2cm,
-    #c8d0d8 calc(100% - 2cm),
-    transparent calc(100% - 2cm)
-  );
-  background-repeat: no-repeat;
-  background-position: center top;
-  background-size: 100% 1px;
+.history-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(23, 43, 77, 0.58);
+}
+
+.modal[hidden] {
+    display: none;
+}
+
+.modal-content {
+    position: relative;
+    width: min(440px, 100%);
+    padding: 30px;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 16px 40px rgba(23, 43, 77, 0.24);
+}
+
+.modal-content h2 {
+    margin-bottom: 18px;
+}
+
+.modal-close {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    border: 0;
+    background: transparent;
+    color: #526174;
+    font-size: 26px;
+    line-height: 1;
+}
+
+.scanner-content {
+    width: min(560px, 100%);
+}
+
+.scanner-content p {
+    margin-bottom: 14px;
+}
+
+#scannerVideo {
+    display: block;
+    width: 100%;
+    min-height: 260px;
+    border-radius: 6px;
+    background: #172b4d;
+    object-fit: cover;
+}
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 30;
+    width: min(420px, calc(100vw - 40px));
+    padding: 15px 18px;
+    border: 1px solid #174ea6;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #263b5a;
+    box-shadow: 0 8px 24px rgba(23, 43, 77, 0.16);
+}
+
+.notification-error {
+    border-color: #b54843;
+    background: #fff5f4;
+    color: #8c302b;
+}
+
+.notification-success {
+    border-color: #2c6e49;
+    background: #f2faf5;
+    color: #245a3d;
+}
+
+.notification-confirmation {
+    top: 50%;
+    right: auto;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.notification-confirmation p {
+    margin-bottom: 16px;
+    color: inherit;
+}
+
+.notification-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.notification-actions button:not(.confirmBtn) {
+    border-color: #b8c6d5;
+    background: #ffffff;
+    color: #263b5a;
 }
 
 @media (max-width: 760px) {
-  /* Stack the cards when the viewport is too narrow for two columns. */
-  .report-layout {
-    grid-template-columns: 1fr;
-  }
+    body {
+        padding: 12px 14px;
+    }
+
+    .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+        margin-bottom: 12px;
+    }
+
+    .nav-links {
+        justify-content: flex-start;
+    }
+
+    .report-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .container > section,
+    .report-form-section,
+    .history-table {
+        padding: 18px;
+    }
 }
 
-/*Sign In and Register styling*/
+@media (max-width: 480px) {
+    .report-actions {
+        flex-wrap: wrap;
+    }
+
+    .paired-inputs {
+        grid-template-columns: 1fr;
+    }
+
+    .container > section,
+    .report-form-section,
+    .history-table {
+        padding: 15px;
+    }
+}

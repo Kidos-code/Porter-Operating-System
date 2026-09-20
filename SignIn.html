@@ -20,11 +20,35 @@
                 <label> Password
                     <input type="password" id="signinPassword" name="signinPassword" required>
                 </label>
+                <p class="forgot-password"><a href="#forgotPasswordModal" id="forgotPasswordLink">Forgot password?</a></p>
                 <button type="submit" class="signinBtn">Sign in</button>
             </form>
 
-            <p class="registerText">Don't have an account? <a href="Register.html">Register</a></p>
+            <p class="registerText">Don't have an account? <a href="Index.html">Register</a></p>
         </section>
+    </div>
+
+    <!-- This modal keeps the reset-code workflow on the sign-in page. -->
+    <div class="modal" id="forgotPasswordModal" role="dialog" aria-modal="true" aria-labelledby="forgotPasswordTitle" hidden>
+        <div class="modal-content">
+            <button type="button" class="modal-close" id="closeForgotPassword" aria-label="Close">&times;</button>
+            <h2 id="forgotPasswordTitle">Reset your password</h2>
+            <form id="requestResetForm">
+                <label> Email
+                    <input type="email" id="resetEmail" required>
+                </label>
+                <button type="submit">Send reset code</button>
+            </form>
+            <form id="completeResetForm" hidden>
+                <label> Reset code
+                    <input type="text" id="resetCode" inputmode="numeric" required>
+                </label>
+                <label> New password
+                    <input type="password" id="newPassword" minlength="6" required>
+                </label>
+                <button type="submit">Reset password</button>
+            </form>
+        </div>
     </div>
 
     <script src="Main.js"></script>

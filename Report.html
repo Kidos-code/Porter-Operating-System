@@ -33,32 +33,56 @@
             <label>Porter Name
                 <input type="text" id="reportPorterName" name="reportPorterName" required>
             </label>
-            <label for="reportPatientName"> Patient Name
-                <input type="text" id="reportPatientName" name="reportPatientName" required>
-            </label>
+            <div class="paired-field-row">
+                <label for="reportPatientName" id="patientIdentifierLabel"> Patient Name
+                    <input type="text" id="reportPatientName" name="reportPatientName" required>
+                    <span id="bloodScannerControl" class="blood-scanner" hidden>
+                        <button type="button" id="openScanner" class="scan-button">Open camera scanner</button>
+                        <output id="scanResult">No specimen scanned</output>
+                    </span>
+                </label>
+                <label for="reportHospitalNumber"> Hospital Number
+                    <input type="text" id="reportHospitalNumber" name="reportHospitalNumber" required>
+                </label>
+            </div>
             <label> Pickup:
-                <input type="text" id="pickupWard" name="pickupWard" list="wardOptions" placeholder="Enter ward" required>
-                <datalist id="wardOptions">
-                    <option value="Emergency"></option>
-                    <option value="ICU"></option>
-                    <option value="Ward A"></option>
-                    <option value="Ward B"></option>
-                    <option value="Maternity"></option>
-                    <option value="Orthopaedics"></option>
-                </datalist>
-                <input type="time" id="pickupTime" name="pickupTime" required>
+                <span class="paired-inputs">
+                    <input type="text" id="pickupWard" name="pickupWard" list="wardOptions" placeholder="Enter ward" required>
+                    <datalist id="wardOptions">
+                        <option value="Emergency"></option>
+                        <option value="ICU"></option>
+                        <option value="Ward A"></option>
+                        <option value="Ward B"></option>
+                        <option value="Maternity"></option>
+                        <option value="Orthopaedics"></option>
+                    </datalist>
+                    <input type="time" id="pickupTime" name="pickupTime" required>
+                </span>
             </label>
             <label> Drop-off:
-                <input type="text" id="dropoffWard" name="dropoffWard" list="wardOptions" placeholder="Enter ward" required>
-                <input type="time" id="dropoffTime" name="dropoffTime" required>
+                <span class="paired-inputs">
+                    <input type="text" id="dropoffWard" name="dropoffWard" list="wardOptions" placeholder="Enter ward" required>
+                    <input type="time" id="dropoffTime" name="dropoffTime" required>
+                </span>
             </label>
             <label> Feedback
                 <textarea id="reportFeedback" name="reportFeedback" rows="4" placeholder="Enter your feedback here..."></textarea>
             </label>
-            <button type="submit" class="saveReturnBtn" formnovalidate>Save & Return</button>
-            <button type="submit" class="submitReportBtn">Submit</button>
+            <div class="report-actions">
+                <button type="submit" class="saveReturnBtn" formnovalidate>Save & Return</button>
+                <button type="submit" class="submitReportBtn">Submit</button>
+            </div>
         </form>
     </section>
+    </div>
+
+    <div class="modal scanner-modal" id="scannerModal" role="dialog" aria-modal="true" aria-labelledby="scannerTitle" hidden>
+        <div class="modal-content scanner-content">
+            <button type="button" class="modal-close" id="closeScanner" aria-label="Close">&times;</button>
+            <h2 id="scannerTitle">Scan QR or barcode</h2>
+            <p id="scannerStatus">Point the rear camera at a code.</p>
+            <video id="scannerVideo" autoplay playsinline muted></video>
+        </div>
     </div>
 
     <aside class="card">
