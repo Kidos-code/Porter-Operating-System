@@ -356,11 +356,12 @@ let scannerDetector;
 
 function setPatientIdentifierLabel() {
     const label = document.getElementById("patientIdentifierLabel");
+    const labelText = document.getElementById("patientIdentifierText");
     const patientNameInput = document.getElementById("reportPatientName");
     const hospitalNumberInput = document.getElementById("reportHospitalNumber");
     const scannerControl = document.getElementById("bloodScannerControl");
-    if (label) {
-        label.childNodes[0].textContent = currentReportType === "Blood" ? " Blood specimen barcode" : " Patient Name";
+    if (labelText) {
+        labelText.textContent = currentReportType === "Blood" ? "Blood specimen barcode" : "Patient Name";
     }
     if (patientNameInput) patientNameInput.hidden = currentReportType === "Blood";
     if (hospitalNumberInput) hospitalNumberInput.closest("label").hidden = currentReportType !== "Patient";
