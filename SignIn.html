@@ -24,44 +24,50 @@
                 <button type="submit" class="signinBtn">Sign in</button>
             </form>
 
-            <p class="registerText">Don't have an account? <a href="Index.html">Register</a></p>
+            <p class="registerText">Don't have an account? <a href="index.html">Register</a></p>
         </section>
     </div>
 
-    <!-- This modal keeps the reset-code workflow on the sign-in page. -->
+    <!-- This modal verifies the security answer before allowing a password reset. -->
     <div class="modal" id="forgotPasswordModal" role="dialog" aria-modal="true" aria-labelledby="forgotPasswordTitle" hidden>
         <div class="modal-content reset-modal-content">
             <button type="button" class="modal-close" id="closeForgotPassword" aria-label="Close">&times;</button>
             <p class="modal-eyebrow">Account access</p>
-            <h2 id="forgotPasswordTitle">Reset your password</h2>
-            <p class="modal-intro">We will email you a secure reset code to verify your account.</p>
+            <h2 id="forgotPasswordTitle">Recover your account</h2>
+            <p class="modal-intro">Answer your security question to unlock a secure password reset.</p>
             <form id="requestResetForm">
-                <label for="resetEmail">Email address
-                    <input type="email" id="resetEmail" autocomplete="email" required>
+                <label for="recoveryUsername">Username
+                    <input type="text" id="recoveryUsername" autocomplete="username" required>
                 </label>
-                <button type="submit" class="reset-submit">Email me a reset code</button>
+                <label for="recoveryEmpNum">Employee number
+                    <input type="text" id="recoveryEmpNum" required>
+                </label>
+                <label for="recoveryQuestion">Security question
+                    <select id="recoveryQuestion" required>
+                        <option value="">Choose a question</option>
+                        <option value="What is your favourite colour?">What is your favourite colour?</option>
+                        <option value="What is your mother's name?">What is your mother's name?</option>
+                        <option value="What is your favourite food?">What is your favourite food?</option>
+                    </select>
+                </label>
+                <label for="recoveryAnswer">Your answer
+                    <input type="text" id="recoveryAnswer" autocomplete="off" required>
+                </label>
+                <button type="submit" class="reset-submit">Verify my answer</button>
             </form>
             <form id="completeResetForm" hidden>
-                <div class="reset-step-note">Check your inbox for the six-digit code.</div>
-                <label for="resetCode">Reset code
-                    <input type="text" id="resetCode" inputmode="numeric" autocomplete="one-time-code" required>
-                </label>
+                <div class="reset-step-note">Your answer was verified. Choose a new password.</div>
                 <label for="newPassword">New password
                     <input type="password" id="newPassword" minlength="6" autocomplete="new-password" required>
                 </label>
-                <button type="submit" class="reset-submit">Set new password</button>
+                <label for="confirmNewPassword">Confirm new password
+                    <input type="password" id="confirmNewPassword" minlength="6" autocomplete="new-password" required>
+                </label>
+                <button type="submit" class="reset-submit">Reset password</button>
             </form>
         </div>
     </div>
 
-    <script>
-        window.EMAILJS_CONFIG = {
-            publicKey: "YOUR_EMAILJS_PUBLIC_KEY",
-            serviceId: "YOUR_EMAILJS_SERVICE_ID",
-            templateId: "YOUR_EMAILJS_TEMPLATE_ID"
-        };
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script src="Main.js"></script>
 </body>
 </html>

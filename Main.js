@@ -7,21 +7,32 @@ const STORAGE_KEYS = {
     activeUser: "active-porter"            // Key for storing the currently logged-in user
 };
 
-// Use the local backend when the app is served by Node, while keeping file:// previews usable.
-const API_BASE = window.location.protocol === "file:" ? "http://localhost:3000" : "";
+// Set window.PORTER_API_URL to the public backend URL when the frontend is hosted separately.
+const API_BASE = window.PORTER_API_URL || (window.location.protocol === "file:" ? "http://localhost:3000" : "");
+const isGitHubPages = window.location.hostname.endsWith(".github.io");
 
 // Send JSON to the backend and turn failed responses into readable errors.
 async function apiRequest(path, data, method = "POST") {
-    const response = await fetch(`${API_BASE}${path}`, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: method === "GET" ? undefined : JSON.stringify(data)
-    });
-    const result = await response.json();
-    if (!response.ok) {
-        throw new Error(result.error || "The request could not be completed.");
+    try {
+        if (isGitHubPages && !window.PORTER_API_URL) {
+            throw new Error("The backend URL is not configured for GitHub Pages. Set PORTER_API_URL in Main.js.");
+        }
+        const response = await fetch(`${API_BASE}${path}`, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: method === "GET" ? undefined : JSON.stringify(data)
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(result.error || "The request could not be completed.");
+        }
+        return result;
+    } catch (error) {
+        if (error instanceof TypeError) {
+            throw new Error("The backend is not reachable. Start it with `npm start`, then try again.");
+        }
+        throw error;
     }
-    return result;
 }
 
 // Build a calendar date using the user's local timezone for daily history grouping.
@@ -224,9 +235,10 @@ function initRegisterForm() {
             // Get input values and trim whitespace
             const username = document.getElementById("registerUsername").value.trim();
             const empNum = document.getElementById("registerEmpNum").value.trim();
-            const email = document.getElementById("registerEmail").value.trim().toLowerCase();
             const password = document.getElementById("registerPassword").value;
             const confirmPassword = document.getElementById("registerConfirmPassword").value;
+            const securityQuestion = document.getElementById("registerSecurityQuestion").value;
+            const securityAnswer = document.getElementById("registerSecurityAnswer").value.trim();
             
             // Validate that all fields are filled with individual alerts
             if (!username) {
@@ -239,11 +251,6 @@ function initRegisterForm() {
                 return;
             }
 
-            if (!email) {
-                showNotification("[Register] Please enter your email.", "error");
-                return;
-            }
-            
             if (!password) {
                 showNotification("[Register] Please enter a password.", "error");
                 return;
@@ -251,6 +258,11 @@ function initRegisterForm() {
             
             if (!confirmPassword) {
                 showNotification("[Register] Please confirm your password.", "error");
+                return;
+            }
+
+            if (!securityQuestion || !securityAnswer) {
+                showNotification("[Register] Please choose a security question and provide an answer.", "error");
                 return;
             }
             
@@ -272,9 +284,9 @@ function initRegisterForm() {
                 return;
             }
             
-            // Register with the backend so the email can later be used for password recovery.
+            // Register with the backend so the security answer can later restore account access.
             try {
-                await apiRequest("/api/register", { username, empNum, email, password });
+                await apiRequest("/api/register", { username, empNum, password, securityQuestion, securityAnswer });
                 showNotification("Account created successfully.", "success", "SignIn.html");
                 return;
             } catch (error) {
@@ -289,7 +301,7 @@ function initRegisterForm() {
             }
             
             // Create new user and save to storage
-            const newUser = { username, empNum, email, password };
+            const newUser = { username, empNum, password, securityQuestion, securityAnswer: securityAnswer.toLowerCase() };
             users.push(newUser);
             saveUsers(users);
             
@@ -298,7 +310,7 @@ function initRegisterForm() {
     }
 }
 
-// Control the modal and complete the email-code password reset workflow.
+// Verify a security answer and restore account access without changing the password.
 function initForgotPassword() {
     const modal = document.getElementById("forgotPasswordModal");
     const link = document.getElementById("forgotPasswordLink");
@@ -306,35 +318,28 @@ function initForgotPassword() {
     const requestForm = document.getElementById("requestResetForm");
     const completeForm = document.getElementById("completeResetForm");
     if (!modal || !link || !closeButton || !requestForm || !completeForm) return;
-
-    const emailJsConfig = window.EMAILJS_CONFIG || {};
-    const emailJsReady = window.emailjs && !Object.values(emailJsConfig).some(value => !value || value.startsWith("YOUR_"));
-    if (emailJsReady) window.emailjs.init({ publicKey: emailJsConfig.publicKey });
+    let recoveryToken = "";
 
     link.addEventListener("click", function(event) {
         event.preventDefault();
         modal.hidden = false;
-        document.getElementById("resetEmail").focus();
+        document.getElementById("recoveryUsername").focus();
     });
     closeButton.addEventListener("click", () => modal.hidden = true);
 
     requestForm.addEventListener("submit", async function(event) {
         event.preventDefault();
-        const email = document.getElementById("resetEmail").value.trim().toLowerCase();
+        const username = document.getElementById("recoveryUsername").value.trim();
+        const empNum = document.getElementById("recoveryEmpNum").value.trim();
+        const securityQuestion = document.getElementById("recoveryQuestion").value;
+        const securityAnswer = document.getElementById("recoveryAnswer").value.trim();
         try {
-            if (!emailJsReady) {
-                throw new Error("EmailJS is not configured. Add the public key, service ID, and template ID in SignIn.html.");
-            }
-            const result = await apiRequest("/api/forgot-password", { email, delivery: "emailjs" });
-            await window.emailjs.send(emailJsConfig.serviceId, emailJsConfig.templateId, {
-                to_email: email,
-                reset_code: result.resetCode,
-                expires_in: "10 minutes"
-            });
-            showNotification("A reset code was sent to your email.", "success");
+            const result = await apiRequest("/api/recover-account", { username, empNum, securityQuestion, securityAnswer });
+            recoveryToken = result.recoveryToken;
             requestForm.hidden = true;
             completeForm.hidden = false;
-            document.getElementById("resetCode").focus();
+            document.getElementById("newPassword").focus();
+            showNotification("Answer verified. You may now reset your password.", "success");
         } catch (error) {
             showNotification(error.message, "error");
         }
@@ -342,20 +347,28 @@ function initForgotPassword() {
 
     completeForm.addEventListener("submit", async function(event) {
         event.preventDefault();
-        const email = document.getElementById("resetEmail").value.trim().toLowerCase();
-        const code = document.getElementById("resetCode").value.trim();
         const password = document.getElementById("newPassword").value;
+        const confirmPassword = document.getElementById("confirmNewPassword").value;
+        if (password !== confirmPassword) {
+            showNotification("The new passwords do not match.", "error");
+            return;
+        }
         try {
-            const result = await apiRequest("/api/reset-password", { email, code, password });
+            const result = await apiRequest("/api/reset-password", { recoveryToken, password });
             modal.hidden = true;
             requestForm.hidden = false;
             completeForm.hidden = true;
             requestForm.reset();
             completeForm.reset();
+            recoveryToken = "";
             showNotification(result.message, "success");
         } catch (error) {
             showNotification(error.message, "error");
         }
+    });
+
+    modal.addEventListener("click", event => {
+        if (event.target === modal) closeButton.click();
     });
 }
 
@@ -606,11 +619,10 @@ async function saveReport(isDraft) {
             await apiRequest("/api/reports", { ...report, reportDate: getLocalDateKey() });
             showNotification("Report submitted successfully.", "success");
         } catch (error) {
-            // Keep file:// previews usable when the optional local backend is not running.
             const reports = getReports();
             reports.push(report);
             saveReports(reports);
-            showNotification("Saved locally. Start the backend to share this report.", "success");
+            showNotification("Report saved on this device.", "success");
         }
         clearReportForm();
         displaySavedReports();

@@ -1,122 +1,14 @@
-// Minimal backend for registration, sign-in, and password resets.
-// Configure SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASSWORD to send real email.
+// Minimal backend for registration, sign-in, account recovery, and reports.
 const http = require("http");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-const sql = require("mssql");
-const nodemailer = require("nodemailer");
 
 const PORT = Number(process.env.PORT || 3000);
 const DATA_FILE = path.join(__dirname, "data", "users.json");
 const REPORTS_FILE = path.join(__dirname, "data", "reports.json");
-const resetCodes = new Map();
+const recoveryTokens = new Map();
 const contentTypes = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
-
-const sqlConfig = {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    server: process.env.DB_SERVER || "localhost",
-    database: process.env.DB_NAME || "PorterTrackingDB",
-    port: Number(process.env.DB_PORT || 1433),
-    options: {
-        encrypt: process.env.DB_ENCRYPT === "true",
-        trustServerCertificate: true,
-        enableArithAbort: true
-    },
-    pool: {
-        max: 5,
-        min: 0,
-        idleTimeoutMillis: 30000
-    }
-};
-let sqlPool;
-
-async function getSqlPool() {
-    if (!sqlPool) {
-        sqlPool = await sql.connect(sqlConfig);
-    }
-    return sqlPool;
-}
-
-function mapReportToSqlRow(report) {
-    const normalizedType = String(report.type || "").trim().toLowerCase();
-    const patientNumber = normalizedType === "patient" ? String(report.hospitalNumber || "").trim() : "";
-    const specimen = normalizedType === "blood" ? String(report.patientName || "").trim() : "";
-    const patientName = normalizedType === "patient" ? String(report.patientName || "").trim() : "";
-
-    return {
-        Porter: String(report.porter || "").trim(),
-        ReportType: String(report.type || "").trim(),
-        PatientName: patientName,
-        PatientNumber: patientNumber,
-        Specimen: specimen,
-        PickupWard: String(report.pickupWard || "").trim(),
-        PickupTime: String(report.pickupTime || "").trim(),
-        DropoffWard: String(report.dropoffWard || "").trim(),
-        DropoffTime: String(report.dropoffTime || "").trim(),
-        Feedback: String(report.feedback || "").trim(),
-        ReportDate: String(report.reportDate || new Date().toISOString().slice(0, 10)),
-        CreatedAt: String(report.createdAt || new Date().toISOString())
-    };
-}
-
-async function saveReportToSql(report) {
-    if (!process.env.DB_SERVER && !process.env.DB_NAME) {
-        return false;
-    }
-
-    try {
-        const pool = await getSqlPool();
-        const row = mapReportToSqlRow(report);
-        await pool.request()
-            .input("Porter", sql.NVarChar(200), row.Porter)
-            .input("ReportType", sql.NVarChar(50), row.ReportType)
-            .input("PatientName", sql.NVarChar(200), row.PatientName)
-            .input("PatientNumber", sql.NVarChar(100), row.PatientNumber)
-            .input("Specimen", sql.NVarChar(200), row.Specimen)
-            .input("PickupWard", sql.NVarChar(200), row.PickupWard)
-            .input("PickupTime", sql.NVarChar(50), row.PickupTime)
-            .input("DropoffWard", sql.NVarChar(200), row.DropoffWard)
-            .input("DropoffTime", sql.NVarChar(50), row.DropoffTime)
-            .input("Feedback", sql.NVarChar(sql.MAX), row.Feedback)
-            .input("ReportDate", sql.Date, new Date(row.ReportDate))
-            .input("CreatedAt", sql.DateTime2, new Date(row.CreatedAt))
-            .query(`
-                INSERT INTO Reports (
-                    Porter,
-                    ReportType,
-                    PatientName,
-                    PatientNumber,
-                    Specimen,
-                    PickupWard,
-                    PickupTime,
-                    DropoffWard,
-                    DropoffTime,
-                    Feedback,
-                    ReportDate,
-                    CreatedAt
-                ) VALUES (
-                    @Porter,
-                    @ReportType,
-                    @PatientName,
-                    @PatientNumber,
-                    @Specimen,
-                    @PickupWard,
-                    @PickupTime,
-                    @DropoffWard,
-                    @DropoffTime,
-                    @Feedback,
-                    @ReportDate,
-                    @CreatedAt
-                )
-            `);
-        return true;
-    } catch (error) {
-        console.error("SQL report insert failed:", error.message);
-        return false;
-    }
-}
 
 // Keep user records on the server instead of trusting browser localStorage.
 function readUsers() {
@@ -152,9 +44,17 @@ function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
 }
 
 function passwordsMatch(password, storedPassword) {
+    if (typeof storedPassword !== "string") return false;
     const [salt, storedHash] = storedPassword.split(":");
+    if (!salt || !storedHash) return false;
     const hash = crypto.scryptSync(password, salt, 64).toString("hex");
-    return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(storedHash, "hex"));
+    const expected = Buffer.from(hash, "hex");
+    const actual = Buffer.from(storedHash, "hex");
+    return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+}
+
+function securityAnswersMatch(answer, storedAnswer) {
+    return passwordsMatch(answer.trim().toLowerCase(), storedAnswer);
 }
 
 function sendJson(response, status, body) {
@@ -177,25 +77,12 @@ function getRequestBody(request) {
     });
 }
 
-async function sendResetEmail(email, code) {
-    // Without SMTP settings, return a development-only code for local testing.
-    if (!process.env.SMTP_HOST) {
-        return false;
+function handleServerError(error) {
+    if (error.code === "EADDRINUSE") {
+        console.error(`Port ${PORT} is already in use. Stop the existing server or use a different PORT.`);
+        return;
     }
-
-    const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT || 587),
-        secure: process.env.SMTP_SECURE === "true",
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD }
-    });
-    await transporter.sendMail({
-        from: process.env.EMAIL_FROM || process.env.SMTP_USER,
-        to: email,
-        subject: "Porter Tracking System password reset code",
-        text: `Your password reset code is ${code}. It expires in 10 minutes.`
-    });
-    return true;
+    console.error("Backend server error:", error);
 }
 
 const server = http.createServer(async (request, response) => {
@@ -220,7 +107,7 @@ const server = http.createServer(async (request, response) => {
         }
 
         const requestedPath = decodeURIComponent(new URL(request.url, "http://localhost").pathname);
-        const fileName = requestedPath === "/" ? "Index.html" : requestedPath.slice(1);
+        const fileName = requestedPath === "/" ? "index.html" : requestedPath.slice(1);
         const filePath = path.resolve(__dirname, fileName);
         if (!filePath.startsWith(path.resolve(__dirname)) || !fs.existsSync(filePath) || !contentTypes[path.extname(filePath)]) {
             return sendJson(response, 404, { error: "Page not found." });
@@ -236,15 +123,17 @@ const server = http.createServer(async (request, response) => {
         if (request.method === "POST" && request.url === "/api/register") {
             const username = String(body.username || "").trim();
             const empNum = String(body.empNum || "").trim();
-            const email = String(body.email || "").trim().toLowerCase();
             const password = String(body.password || "");
-            if (!username || !empNum || !email || password.length < 6) {
-                return sendJson(response, 400, { error: "All fields are required and the password must be at least 6 characters." });
+            const securityQuestion = String(body.securityQuestion || "").trim();
+            const securityAnswer = String(body.securityAnswer || "").trim().toLowerCase();
+            if (!username || !empNum || password.length < 6 || !securityQuestion || !securityAnswer) {
+                return sendJson(response, 400, { error: "All fields are required, including a security question and answer." });
             }
-            if (users.some(user => user.username === username || user.empNum === empNum || user.email === email)) {
-                return sendJson(response, 409, { error: "Username, employee number, or email already exists." });
+            if (users.some(user => user.username === username || user.empNum === empNum)) {
+                return sendJson(response, 409, { error: "Username or employee number already exists." });
             }
-            users.push({ username, empNum, email, password: hashPassword(password) });
+            const newUser = { username, empNum, password: hashPassword(password), securityQuestion, securityAnswer: hashPassword(securityAnswer) };
+            users.push(newUser);
             writeUsers(users);
             return sendJson(response, 201, { message: "Account created successfully." });
         }
@@ -290,38 +179,35 @@ const server = http.createServer(async (request, response) => {
             return sendJson(response, 201, { report });
         }
 
-        if (request.method === "POST" && request.url === "/api/forgot-password") {
-            const email = String(body.email || "").trim().toLowerCase();
-            const user = users.find(candidate => candidate.email === email);
-            if (!user) {
-                return sendJson(response, 404, { error: "No account was found for that email address." });
+        if (request.method === "POST" && request.url === "/api/recover-account") {
+            const username = String(body.username || "").trim();
+            const empNum = String(body.empNum || "").trim();
+            const securityQuestion = String(body.securityQuestion || "").trim();
+            const securityAnswer = String(body.securityAnswer || "").trim();
+            const user = users.find(candidate => candidate.username === username && candidate.empNum === empNum);
+            if (!user || user.securityQuestion !== securityQuestion || !user.securityAnswer || !securityAnswersMatch(securityAnswer, user.securityAnswer)) {
+                return sendJson(response, 401, { error: "The username, employee number, question, or answer is incorrect." });
             }
-            const code = String(crypto.randomInt(100000, 1000000));
-            resetCodes.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000 });
-            if (body.delivery === "emailjs") {
-                return sendJson(response, 200, { message: "Reset code generated.", resetCode: code });
-            }
-            const emailSent = await sendResetEmail(email, code);
-            return sendJson(response, 200, {
-                message: emailSent ? "A reset code was sent to your email." : "Development mode: use the reset code shown below.",
-                developmentCode: emailSent ? undefined : code
-            });
+            const recoveryToken = crypto.randomBytes(32).toString("hex");
+            recoveryTokens.set(recoveryToken, { username: user.username, empNum: user.empNum, expiresAt: Date.now() + 10 * 60 * 1000 });
+            return sendJson(response, 200, { recoveryToken });
         }
 
         if (request.method === "POST" && request.url === "/api/reset-password") {
-            const email = String(body.email || "").trim().toLowerCase();
+            const recoveryToken = String(body.recoveryToken || "");
             const password = String(body.password || "");
-            const reset = resetCodes.get(email);
-            if (!reset || reset.expiresAt < Date.now() || reset.code !== String(body.code || "")) {
-                return sendJson(response, 400, { error: "The reset code is invalid or has expired." });
+            const recovery = recoveryTokens.get(recoveryToken);
+            if (!recovery || recovery.expiresAt < Date.now()) {
+                return sendJson(response, 400, { error: "Your recovery verification has expired. Please try again." });
             }
             if (password.length < 6) {
                 return sendJson(response, 400, { error: "The new password must be at least 6 characters." });
             }
-            const user = users.find(candidate => candidate.email === email);
+            const user = users.find(candidate => candidate.username === recovery.username && candidate.empNum === recovery.empNum);
+            if (!user) return sendJson(response, 404, { error: "Account not found." });
             user.password = hashPassword(password);
             writeUsers(users);
-            resetCodes.delete(email);
+            recoveryTokens.delete(recoveryToken);
             return sendJson(response, 200, { message: "Password reset successfully." });
         }
 
@@ -332,4 +218,5 @@ const server = http.createServer(async (request, response) => {
     }
 });
 
+server.on("error", handleServerError);
 server.listen(PORT, () => console.log(`Porter backend running at http://localhost:${PORT}`));

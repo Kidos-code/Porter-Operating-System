@@ -8,14 +8,10 @@
 
 The backend stores registered users in `data/users.json` and hashes their passwords.
 
-## Email reset configuration
+## Account recovery
 
-Set these environment variables before starting the backend to send real reset emails:
+The backend uses security questions for account recovery. Recovery restores access and allows the user to set a new password.
 
-- `SMTP_HOST`
-- `SMTP_PORT` (usually `587`)
-- `SMTP_USER`
-- `SMTP_PASSWORD`
-- `EMAIL_FROM` (optional)
+## Frontend and backend connection
 
-Without SMTP settings, the backend returns a development reset code so the workflow can be tested locally.
+For local use, start the backend with `npm start` and open `http://localhost:3000/SignIn.html`. Data is stored in JSON files under `data/`.

@@ -17,14 +17,22 @@
             <label> Employee Number
                 <input type="text" id="registerEmpNum" name="registerEmpNum" required>
             </label>
-            <label> Email
-                <input type="email" id="registerEmail" name="registerEmail" required>
-            </label>
             <label> Password
                 <input type="password" id="registerPassword" name="registerPassword" required>
             </label>
             <label> Confirm Password
                 <input type="password" id="registerConfirmPassword" name="registerConfirmPassword" required>
+            </label>
+            <label> Security Question
+                <select id="registerSecurityQuestion" name="registerSecurityQuestion" required>
+                    <option value="">Choose a question</option>
+                    <option value="What is your favourite colour?">What is your favourite colour?</option>
+                    <option value="What is your mother's name?">What is your mother's name?</option>
+                    <option value="What is your favourite food?">What is your favourite food?</option>
+                </select>
+            </label>
+            <label> Security Answer
+                <input type="text" id="registerSecurityAnswer" name="registerSecurityAnswer" autocomplete="off" required>
             </label>
             <button type="submit" class="registerBtn">Register</button>
         </form>
