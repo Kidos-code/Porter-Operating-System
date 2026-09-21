@@ -100,7 +100,7 @@ form label {
 input,
 textarea {
     width: 100%;
-    padding: 11px 12px;
+    padding: 9.5px 12px;
     border: 1px solid #b8c6d5;
     border-radius: 6px;
     background: #ffffff;
@@ -108,7 +108,7 @@ textarea {
 }
 
 form input {
-    padding: 10px 12px;
+    padding: 8.5px 12px;
 }
 
 input:focus,
@@ -264,6 +264,10 @@ form > button:hover,
     padding: 0;
 }
 
+#reportForm input {
+    padding: 7.5px 12px;
+}
+
 .paired-field-row {
     display: grid;
     grid-template-columns: minmax(0, 1.4fr) minmax(180px, 0.8fr);
@@ -406,6 +410,56 @@ form > button:hover,
 
 .modal-content h2 {
     margin-bottom: 18px;
+}
+
+.reset-modal-content {
+    width: min(460px, 100%);
+    padding: 34px;
+    border: 1px solid #d6e0ea;
+    border-top: 4px solid #174ea6;
+    box-shadow: 0 22px 55px rgba(23, 43, 77, 0.28);
+}
+
+.reset-modal-content h2 {
+    margin-bottom: 8px;
+    color: #172b4d;
+}
+
+.modal-eyebrow {
+    margin-bottom: 8px;
+    color: #3769a9;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.modal-intro {
+    margin-bottom: 22px;
+    color: #526174;
+    font-size: 0.92rem;
+}
+
+.reset-modal-content form {
+    margin-top: 0;
+}
+
+.reset-modal-content input {
+    padding: 10px 12px;
+}
+
+.reset-submit {
+    width: 100%;
+    margin-top: 4px;
+}
+
+.reset-step-note {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-left: 3px solid #3769a9;
+    background: #f1f6fb;
+    color: #526174;
+    font-size: 0.9rem;
 }
 
 .modal-close {

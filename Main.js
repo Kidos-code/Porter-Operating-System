@@ -307,6 +307,10 @@ function initForgotPassword() {
     const completeForm = document.getElementById("completeResetForm");
     if (!modal || !link || !closeButton || !requestForm || !completeForm) return;
 
+    const emailJsConfig = window.EMAILJS_CONFIG || {};
+    const emailJsReady = window.emailjs && !Object.values(emailJsConfig).some(value => !value || value.startsWith("YOUR_"));
+    if (emailJsReady) window.emailjs.init({ publicKey: emailJsConfig.publicKey });
+
     link.addEventListener("click", function(event) {
         event.preventDefault();
         modal.hidden = false;
@@ -318,11 +322,19 @@ function initForgotPassword() {
         event.preventDefault();
         const email = document.getElementById("resetEmail").value.trim().toLowerCase();
         try {
-            const result = await apiRequest("/api/forgot-password", { email });
-            showNotification(result.message, "success");
-            if (result.developmentCode) showNotification(`Development reset code: ${result.developmentCode}`, "success");
+            if (!emailJsReady) {
+                throw new Error("EmailJS is not configured. Add the public key, service ID, and template ID in SignIn.html.");
+            }
+            const result = await apiRequest("/api/forgot-password", { email, delivery: "emailjs" });
+            await window.emailjs.send(emailJsConfig.serviceId, emailJsConfig.templateId, {
+                to_email: email,
+                reset_code: result.resetCode,
+                expires_in: "10 minutes"
+            });
+            showNotification("A reset code was sent to your email.", "success");
             requestForm.hidden = true;
             completeForm.hidden = false;
+            document.getElementById("resetCode").focus();
         } catch (error) {
             showNotification(error.message, "error");
         }

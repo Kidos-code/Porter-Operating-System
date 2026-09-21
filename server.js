@@ -298,6 +298,9 @@ const server = http.createServer(async (request, response) => {
             }
             const code = String(crypto.randomInt(100000, 1000000));
             resetCodes.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000 });
+            if (body.delivery === "emailjs") {
+                return sendJson(response, 200, { message: "Reset code generated.", resetCode: code });
+            }
             const emailSent = await sendResetEmail(email, code);
             return sendJson(response, 200, {
                 message: emailSent ? "A reset code was sent to your email." : "Development mode: use the reset code shown below.",
